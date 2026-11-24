@@ -1,0 +1,6 @@
+id=k103_font_manager
+name=K103 猫猫字体管理
+version=v1.0
+versionCode=1
+author=momo_cat
+description=Boyue Likebook K103 自定义字体替换系统字体：把 /sdcard/Fonts 里的 ttf/otf 一键替换系统中文（zh-Hans/zh-Hant）与可选西文（Roboto 全家）。systemless：只覆盖 fonts.xml 条目与字体内容 bind mount，不写 /system 分区，卸载即还原。字体库 /sdcard/Fonts。配合「猫猫字体管理」APP 或 tools/font_ctl.sh 使用。

@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>猫猫字体管理</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { background: #fff; color: #000; font-size: 16px; }
+  body { font-family: sans-serif; padding: 10px; max-width: 640px; margin: 0 auto; }
+  .card { border: 2px solid #000; border-radius: 12px; padding: 12px; margin-bottom: 12px; background: #fff; }
+  .card h3 { font-size: 15px; font-weight: bold; border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 8px; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; padding: 2px 4px 10px; }
+  .topbar h1 { font-size: 20px; font-weight: bold; }
+  .badge { border: 2px solid #000; border-radius: 999px; padding: 3px 10px; font-size: 13px; white-space: nowrap; }
+  .badge.on { background: #000; color: #fff; }
+  .kv { font-size: 14px; line-height: 1.7; }
+  .kv b { text-decoration: underline; font-weight: bold; }
+  #fontlist { max-height: 40vh; overflow-y: auto; }
+  .fitem { display: flex; justify-content: space-between; align-items: center; padding: 10px 8px; border-radius: 8px; border-bottom: 1px solid #000; cursor: pointer; }
+  .fitem .no { font-size: 13px; border: 1px solid #000; border-radius: 6px; padding: 1px 7px; margin-right: 10px; flex-shrink: 0; }
+  .fitem .nm { flex: 1; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fitem .cur { font-size: 12px; background: #000; color: #fff; border-radius: 6px; padding: 2px 8px; margin-left: 8px; flex-shrink: 0; }
+  .fitem.sel { background: #000; color: #fff; }
+  .fitem.sel .no { border-color: #fff; }
+  .fitem.sel .cur { background: #fff; color: #000; }
+  #preview { font-family: 'pf', sans-serif; font-size: 20px; line-height: 1.8; word-break: break-all; }
+  #preview small { font-size: 15px; }
+  .preview-loading { font-family: sans-serif; font-size: 14px; text-decoration: underline; }
+  .ops { display: flex; flex-wrap: wrap; gap: 10px; }
+  button { flex: 1 1 40%; min-height: 52px; font-size: 16px; font-weight: bold; border-radius: 12px; border: 2px solid #000; background: #fff; color: #000; cursor: pointer; }
+  button.primary { background: #000; color: #fff; }
+  button:disabled { color: #fff; background: #fff; border-color: #fff; pointer-events: none; outline: 2px solid #000; outline-offset: -2px; }
+  .chkrow { display: flex; align-items: center; font-size: 15px; margin-bottom: 10px; cursor: pointer; user-select: none; }
+  .chkrow .box { width: 24px; height: 24px; border: 2px solid #000; border-radius: 6px; margin-right: 10px; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+  .chkrow.on .box { background: #000; color: #fff; }
+  .chkrow.on .box::after { content: "✓"; }
+  #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #000; color: #fff; font-size: 14px; padding: 10px 18px; border-radius: 10px; display: none; max-width: 90%; text-align: center; z-index: 99; }
+  #modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: none; z-index: 100; }
+  #modal { position: fixed; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 86%; max-width: 480px; background: #fff; border: 3px solid #000; border-radius: 14px; padding: 16px; z-index: 101; display: none; }
+  #modal h4 { font-size: 17px; margin-bottom: 10px; text-decoration: underline; }
+  #modal p { font-size: 14px; line-height: 1.7; margin-bottom: 14px; }
+  #modal .ops button { flex: 1 1 45%; }
+  footer { text-align: center; font-size: 12px; margin: 4px 0 10px; text-decoration: underline; }
+  .hint { font-size: 13px; line-height: 1.6; margin-top: 8px; text-decoration: underline; }
+</style>
+</head>
+<body>
+  <div class="topbar"><h1>猫猫字体管理</h1><div class="badge" id="badge">读取中</div></div>
+
+  <div class="card">
+    <div class="kv" id="stat">模块状态读取中…</div>
+  </div>
+
+  <div class="card">
+    <h3 id="listtitle">字体库</h3>
+    <div id="fontlist"><div class="kv">读取中…</div></div>
+  </div>
+
+  <div class="card">
+    <h3>预览</h3>
+    <div id="preview"><span class="preview-loading">点击上方字体查看预览</span></div>
+  </div>
+
+  <div class="card">
+    <h3>操作</h3>
+    <div class="chkrow" id="latin"><span class="box"></span>同时替换西文数字（Roboto 全家）</div>
+    <div class="ops">
+      <button class="primary" id="btn-apply" disabled>激活该字体</button>
+      <button id="btn-flush">立即生效</button>
+      <button id="btn-reset">还原系统默认</button>
+    </div>
+    <div class="hint">激活后需重启界面生效；「立即生效」将重启整个界面（约 20~40 秒），期间本应用会自动退出。</div>
+  </div>
+
+  <footer>猫猫字体管理 v1.0 · momo_cat · 字体库 /sdcard/Fonts</footer>
+
+  <details style="margin: 0 0 12px;"><summary style="font-size: 13px; text-decoration: underline; cursor: pointer;">调试信息</summary><pre id="dbgpre" style="font-size: 11px; white-space: pre-wrap; word-break: break-all; border: 1px solid #000; border-radius: 8px; padding: 8px; margin-top: 6px; max-height: 30vh; overflow-y: auto;"></pre></details>
+
+  <div id="toast"></div>
+  <div id="modal-mask"></div>
+  <div id="modal"><h4 id="m-title"></h4><p id="m-body"></p><div class="ops"><button class="primary" id="m-ok">确定</button><button id="m-cancel">取消</button></div></div>
+
+<script>
+  var CTL = null, fonts = [], selIdx = 0, activeIdx = -1, activeName = '', latin = 0;
+  var handlers = [];
+
+  function b64u(s) {
+    // CmdTask 端用 Base64.decode(flag 0xa = URL_SAFE|NO_WRAP)，
+    // JS btoa 输出标准字母表（+/）：含 + 或 / 的命令会被安卓解码丢弃。
+    // 必须 encode 后转成 URL_SAFE（+ → -，/ → _）与解码端对齐。
+    return btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_');
+  }
+  window.__dbg = [];
+  function dbg(s) {
+    window.__dbg.push(s);
+    if (window.__dbg.length > 12) window.__dbg.shift();
+    var el = document.getElementById('dbgpre');
+    if (el) el.textContent = window.__dbg.join('\n');
+  }
+  window.onCmdResult = function (b64) {
+    var text = '';
+    try {
+      var bin = atob(b64), u8 = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+      text = new TextDecoder('utf-8').decode(u8);
+    } catch (e) { try { text = atob(b64); } catch (e2) { text = String(b64); } }
+    dbg('[cmd] ' + text.slice(0, 200));
+    var h = handlers.shift();
+    if (h) h(text);
+    else dbg('[cmd] 无对应回调');
+  };
+  function cmd(c, cb) {
+    handlers.push(cb || function () {});
+    location.href = 'http://cmd.local/run/' + b64u(c + ' 2>&1');
+  }
+  function ctl(args, cb) { dbg('[send] ' + args); cmd('sh ' + CTL + ' ' + args, cb); }
+
+  function toast(msg, ms) {
+    var t = document.getElementById('toast');
+    t.textContent = msg; t.style.display = 'block';
+    clearTimeout(t._tm);
+    t._tm = setTimeout(function () { t.style.display = 'none'; }, ms || 3000);
+  }
+  function modal(title, body, onOk) {
+    document.getElementById('m-title').textContent = title;
+    document.getElementById('m-body').innerHTML = body;
+    document.getElementById('modal-mask').style.display = 'block';
+    document.getElementById('modal').style.display = 'block';
+    document.getElementById('m-ok').onclick = function () { closeModal(); onOk(); };
+    document.getElementById('m-cancel').onclick = closeModal;
+  }
+  function closeModal() {
+    document.getElementById('modal-mask').style.display = 'none';
+    document.getElementById('modal').style.display = 'none';
+  }
+
+  function detect() {
+    cmd('ls /data/adb/modules/k103_font_manager/tools/font_ctl.sh', function (r) {
+      console.log('[font] detect modules:', JSON.stringify(r.slice(0, 120)));
+      if (r.indexOf('font_ctl.sh') >= 0 && r.indexOf('No such') < 0) {
+        CTL = '/data/adb/modules/k103_font_manager/tools/font_ctl.sh'; init();
+      } else {
+        cmd('ls /data/adb/modules_update/k103_font_manager/tools/font_ctl.sh', function (r2) {
+          console.log('[font] detect modules_update:', JSON.stringify(r2.slice(0, 120)));
+          if (r2.indexOf('font_ctl.sh') >= 0 && r2.indexOf('No such') < 0) {
+            CTL = '/data/adb/modules_update/k103_font_manager/tools/font_ctl.sh'; init();
+          } else {
+            document.getElementById('stat').innerHTML = '未找到字体模块。<br>请先安装「K103-FontManager」Magisk 模块。';
+            document.getElementById('badge').textContent = '未装模块';
+            document.getElementById('badge').className = 'badge';
+            document.getElementById('fontlist').innerHTML = '<div class="kv">—</div>';
+          }
+        });
+      }
+    });
+  }
+
+  function init() {
+    ctl('status', function (r) { parseStatus(r); ctl('list', parseList); });
+  }
+
+  function parseStatus(r) {
+    console.log('[font] status raw:', JSON.stringify(r.slice(0, 300)));
+    var st = {};
+    r.split('\n').forEach(function (l) {
+      var m = l.match(/^([a-z_]+)=(.*)\s*$/); if (m) st[m[1]] = m[2].trim();
+    });
+    window._st = st;
+    console.log('[font] status parsed:', JSON.stringify(st));
+    latin = (st.latin === '1') ? 1 : 0;
+    document.getElementById('latin').className = 'chkrow' + (latin ? ' on' : '');
+    var act = st.active || 'none';
+    if (act !== 'none' && act.indexOf('|') >= 0) {
+      var p = act.split('|');
+      activeIdx = parseInt(p[0], 10); activeName = p[1];
+    } else { activeIdx = -1; activeName = ''; }
+    var layT = parseInt(st.layers_ttc || '0', 10), layX = parseInt(st.layers_xml || '0', 10);
+    var mounted = (layT > 0 && layX > 0);
+    var badge = document.getElementById('badge');
+    if (activeName) {
+      badge.textContent = '已激活·' + (latin ? '中西文' : '中文');
+      badge.className = 'badge on';
+    } else {
+      badge.textContent = '系统默认'; badge.className = 'badge';
+    }
+    var html = '';
+    if (activeName) {
+      html += '当前激活：<b>' + esc(activeName.replace(/\.(ttf|otf|ttc)$/i, '')) + '</b>'
+           + (latin ? '（中文 + 西文数字）' : '（仅中文）') + '<br>';
+      html += '运行时挂载：' + (mounted ? '已挂载，重启界面后生效' : '未挂载，重启设备后生效') + '<br>';
+      html += '如界面尚未变化，请点「立即生效」重启界面。';
+    } else if (st.module_ttc === '1') {
+      html += '检测到已激活的字体文件（状态字段读取异常）。<br>点「立即生效」重启界面即可应用。';
+    } else {
+      html = '当前使用系统默认字体（Noto Sans CJK）。<br>从下方列表选择一个字体并激活即可替换。';
+    }
+    document.getElementById('stat').innerHTML = html;
+  }
+
+  function parseList(r) {
+    fonts = [];
+    r.split('\n').forEach(function (l) {
+      var m = l.match(/^(\d+)\|(.+)$/);
+      if (m) fonts.push({ no: parseInt(m[1], 10), name: m[2] });
+    });
+    document.getElementById('listtitle').textContent = '字体库（' + fonts.length + '）· /sdcard/Fonts';
+    renderList();
+    if (!fonts.length) {
+      document.getElementById('fontlist').innerHTML = '<div class="kv">字体库为空。请把 ttf/otf/ttc 放入 /sdcard/Fonts 后重开本应用。</div>';
+    }
+  }
+
+  function renderList() {
+    var box = document.getElementById('fontlist');
+    box.innerHTML = '';
+    fonts.forEach(function (f) {
+      var d = document.createElement('div');
+      d.className = 'fitem' + (f.no === selIdx ? ' sel' : '');
+      d.innerHTML = '<span class="no">' + f.no + '</span><span class="nm">' + esc(f.name) + '</span>'
+                  + (f.no === activeIdx ? '<span class="cur">当前</span>' : '');
+      d.onclick = function () { selectFont(f.no); };
+      box.appendChild(d);
+    });
+    var btn = document.getElementById('btn-apply');
+    btn.disabled = !selIdx;
+    btn.textContent = selIdx ? '激活：' + shortName(selIdx) : '激活该字体';
+  }
+  function shortName(no) {
+    for (var i = 0; i < fonts.length; i++)
+      if (fonts[i].no === no) return fonts[i].name.replace(/\.(ttf|otf|ttc)$/i, '').substr(0, 12);
+    return '';
+  }
+  function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+  function selectFont(no) {
+    selIdx = no; renderList();
+    var pv = document.getElementById('preview');
+    pv.innerHTML = '<span class="preview-loading">正在加载字体（大字体约需数秒）…</span>';
+    ctl('preview ' + no, function (r) {
+      console.log('[font] preview raw:', JSON.stringify(r.slice(0, 200)));
+      if (r.indexOf('OK') < 0) { pv.innerHTML = '<span class="preview-loading">预览失败：' + esc(r.trim()) + '</span>'; return; }
+      var path = r.replace('OK:', '').trim();
+      if (!path) path = '/data/data/com.momocat.k103.font/cache/current.ttf';
+      var ts = Date.now();
+      var st = document.getElementById('pfstyle');
+      if (!st) { st = document.createElement('style'); st.id = 'pfstyle'; document.head.appendChild(st); }
+      st.textContent = "@font-face { font-family: 'pf'; src: url('file://" + path + "?" + ts + "'); }";
+      pv.innerHTML = ''
+        + '静夜思 · 春望 · 水调歌头<br>'
+        + '床前明月光，疑是地上霜。举头望明月，低头思故乡。<br>'
+        + '国破山河在，城春草木深。感时花溅泪，恨别鸟惊心。<br>'
+        + '<small>The quick brown fox jumps over the lazy dog.</small><br>'
+        + '<small>0123456789 ABCdef ｢｣（）：；——……、。？！</small><br>'
+        + '<small id="pvstate" class="preview-loading">字体加载检测中…</small>';
+      try {
+        // 大字体（30MB+）解析慢，检测必须延迟且不假报失败
+        document.fonts.load('20px pf').then(function () {
+          setTimeout(function () {
+            var ok = document.fonts.check('20px pf');
+            dbg('[fontface] ' + (ok ? 'loaded' : 'not-ready'));
+            var el = document.getElementById('pvstate');
+            if (el) el.textContent = ok ? '√ 预览字体已应用' : '字体仍在解析（大字体较慢），稍候…';
+          }, 2500);
+        }, function (err) {
+          dbg('[fontface] error ' + err);
+        });
+      } catch (e) { dbg('[fontface] API unavailable'); }
+    });
+  }
+
+  document.getElementById('latin').onclick = function () {
+    latin = latin ? 0 : 1;
+    this.className = 'chkrow' + (latin ? ' on' : '');
+  };
+
+  document.getElementById('btn-apply').onclick = function () {
+    if (!selIdx) return;
+    var name = shortName(selIdx);
+    modal('激活字体',
+      '将「' + esc(name) + '」设为系统字体？<br>'
+      + (latin ? '替换范围：中文 + 西文数字' : '替换范围：仅中文（西文保持 Roboto）')
+      + '<br>激活后需重启界面生效。',
+      function () { ctl('apply ' + selIdx + (latin ? ' latin' : ''), function (r) {
+        console.log('[font] apply raw:', JSON.stringify(r.slice(0, 200)));
+        if (r.indexOf('OK') >= 0) { toast('已激活 ' + name + '，点「立即生效」重启界面'); init(); }
+        else toast('激活失败：' + r.trim(), 5000);
+      }); });
+  };
+
+  document.getElementById('btn-flush').onclick = function () {
+    if (!activeName && !(window._st && window._st.module_ttc === '1')) { toast('当前是系统默认字体，无需重启界面'); return; }
+    modal('立即生效（重启界面）',
+      '将重启整个界面使新字体生效（约 20~40 秒）。<br><b>期间屏幕会黑一下，本应用会自动退出，请稍后重新打开。</b>',
+      function () { ctl('flush', function () { toast('界面已重启'); init(); }); });
+  };
+
+  document.getElementById('btn-reset').onclick = function () {
+    modal('还原系统默认', '停止替换，恢复出厂字体（Noto Sans CJK）。<br>重启界面后完全生效。',
+      function () { ctl('reset', function (r) {
+        if (r.indexOf('OK') >= 0) { toast('已还原系统默认'); init(); }
+        else toast('还原失败：' + r.trim(), 5000);
+      }); });
+  };
+
+  detect();
+</script>
+</body>
+</html>

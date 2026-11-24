@@ -1,0 +1,13 @@
+version: 2.12.1
+apkFileName: 猫猫透明锁屏forAlita-v1.2.apk
+usesFramework:
+  ids:
+  - 1
+sdkInfo:
+  minSdkVersion: 21
+  targetSdkVersion: 28
+packageInfo:
+  forcedPackageId: 127
+versionInfo:
+  versionCode: 1
+  versionName: 1.0
